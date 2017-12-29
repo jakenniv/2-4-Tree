@@ -1,12 +1,10 @@
 package termproject;
 
-
 /**
 * Title:        Project #7
-* Description:
+* Description:  An exception when the key provided is not an integer 
 * Copyright:    Copyright (c) 2001
-* Company:
-* @author: Dava Gallagher 
+* @author: Dave Gallagher 
 * @version 1.0
 */
 public class InvalidIntegerException extends RuntimeException {
