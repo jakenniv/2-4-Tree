@@ -1,5 +1,5 @@
 /**
- * @Authors: Colin Haley and Jake Kenniv
+ * @authors: Colin Haley and Jake Kenniv
  * 
  * Description: 2-4 tree data structure designed to store duplicate and non-duplicate
  * items which contain a key and element. 
@@ -13,6 +13,7 @@
  *           leftFusion, rightFusion, inOrderSucceed, and findElement 
  *  -Dec. 10: Remove function finished. Tree debugged. 
  * 
+ * Copyright: 
  */
 package termproject;
 
