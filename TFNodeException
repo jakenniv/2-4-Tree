@@ -1,11 +1,9 @@
 package termproject;
 
-
 /**
 * Title:        Term Project 2-4 Trees
-* Description:
+* Description:  An exception if there is an issue with a TFNode 
 * Copyright:    Copyright (c) 2001
-* Company:
 * @author: Dave Gallagher 
 * @version 1.0
 */
