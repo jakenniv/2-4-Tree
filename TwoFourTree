@@ -13,7 +13,7 @@
  *           leftFusion, rightFusion, inOrderSucceed, and findElement 
  *  -Dec. 10: Remove function finished. Tree debugged. 
  * 
- * Copyright: 
+ * Copyright: Copyright (c) 2017
  */
 package termproject;
 
