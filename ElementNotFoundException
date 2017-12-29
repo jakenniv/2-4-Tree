@@ -1,9 +1,8 @@
 package termproject;
 
-
 /**
 * Title:        Term Project 2-4 Trees
-* Description:
+* Description:  Exception if the element is not found in the tree
 * Copyright:    Copyright (c) 2001
 * Company:
 * @author Dave Gallagher 
@@ -12,12 +11,12 @@ package termproject;
 public class ElementNotFoundException extends RuntimeException {
 
 	public ElementNotFoundException() {  
-      super ("Problem with TwoFourTree");
-  }
+      		super ("Problem with TwoFourTree");
+  	}
   
 	public ElementNotFoundException(String errorMsg) {
-       super (errorMsg);
-  }
+       		super (errorMsg);
+  	}
 
 	
 }
