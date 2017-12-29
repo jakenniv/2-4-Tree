@@ -3,9 +3,8 @@ package termproject;
 
 /**
 * Title:        Project #7
-* Description:
+* Description:  An integer comparator class which implements Comparator 
 * Copyright:    Copyright (c) 2001
-* Company:
 * @author: Dave Gallagher 
 * @version 1.0
 */
