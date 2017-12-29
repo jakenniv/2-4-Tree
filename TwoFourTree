@@ -1,0 +1,802 @@
+/**
+ * @Authors: Colin Haley and Jake Kenniv
+ * 
+ * Description: 2-4 tree data structure designed to store duplicate and non-duplicate
+ * items which contain a key and element. 
+ * 
+ * @version: 1.0
+ * List of Modifications:
+ *  -Dec. 5: Initial planning and drawings 
+ *  -Dec. 6: Insert function written: search, WCIT, FFGTE, and fixOverflow
+ *  -Dec. 8: Insert function polished and debugged. Began writing remove
+ *  -Dec. 9: Remove function written: fixUnderflow, rightTransfer, leftTransfer,
+ *           leftFusion, rightFusion, inOrderSucceed, and findElement 
+ *  -Dec. 10: Remove function finished. Tree debugged. 
+ * 
+ */
+package termproject;
+
+import java.util.Random;
+
+/**
+ * Title:        Term Project 2-4 Trees
+ * Copyright:    Copyright (c) 2001
+ */
+public class TwoFourTree implements Dictionary {
+
+    private Comparator treeComp;
+    private int size = 0;
+    private TFNode treeRoot = null;
+
+    public TwoFourTree(Comparator comp) {
+        treeComp = comp;
+    }
+
+    private TFNode root() {
+        return treeRoot;
+    }
+
+    private void setRoot(TFNode root) {
+        treeRoot = root;
+    }
+
+    @Override
+    public int size() {
+        return size;
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return (size == 0);
+    }
+
+    /**
+     * Searches dictionary to determine if key is present
+     * @param key to be searched for
+     * @return object corresponding to key; null if not found
+     * @exception ElementNotFoundException if the key is not in dictionary
+     */
+    @Override
+    public Object findElement(Object key) throws ElementNotFoundException {
+        //If the tree is empty...
+        if (treeRoot == null) {
+            throw new ElementNotFoundException("Element does not exist; tree is empty"); 
+        }
+        //Set a pointer to the node that contains the key 
+        TFNode foundNode = search(key, treeRoot);
+        //find the first element greater than or equal to the desired key 
+        int foundKey = FFGTE((int) key, foundNode);
+        //check if the two elements are actually equal and return the item if true
+        if ((int) foundNode.getItem(foundKey).key() == (int) key) {
+            return (foundNode.getItem(foundKey).key()); 
+        }
+        //otherwise return null
+        return null;
+    }
+
+    /**
+     * Inserts provided element into the Dictionary
+     * @param key of object to be inserted
+     * @param element to be inserted
+     */
+    @Override
+    public void insertElement(Object key, Object element) {
+        //If the tree is empty, we create a new root and insert the item at the root
+        if (treeRoot == null) {
+            treeRoot = new TFNode();
+            Item newItem = new Item(key, element); 
+            treeRoot.addItem(0, newItem);
+            //Set 2 sentinel children
+            treeRoot.setChild(0, addSentinel(treeRoot));
+            treeRoot.setChild(1, addSentinel(treeRoot));  
+            return; 
+        }
+        
+        //Otherwise we search the tree for the proper insertion point
+        else {
+            //find the insertion node 
+            TFNode currentNode = search(key, treeRoot);
+            //find the insertion index
+            Object insertAt = FFGTE((Integer) key, currentNode);
+            Item newItem = new Item(key, element); 
+            //Handle duplicates by finding the in order successor
+            if (checkSentinel(0, currentNode) == false) {
+                if ((int) insertAt < currentNode.getNumItems()) {
+                    Object testKey = currentNode.getItem((int)insertAt).key();
+                    if (treeComp.isEqual(testKey, key)) {
+                         currentNode = inOrderNode((int) insertAt, currentNode); 
+                    }
+                }
+            }
+            //Insert the item at the correct location in the correct node
+            insertAt = FFGTE((Integer) key, currentNode);
+            currentNode.insertItem((Integer) insertAt, newItem);
+            if (checkSentinel((int) insertAt, currentNode) == true) {
+                currentNode.setChild((int) insertAt, addSentinel(currentNode)); 
+            }
+            //Check for overflow 
+            if (currentNode.getNumItems() == currentNode.getMaxItems()+1) {
+                fixOverflow(currentNode); 
+            }   
+        }
+    }
+    
+    /**
+     * Fixes an overflowed node 
+     * @param node 
+     */
+    private void fixOverflow(TFNode node) {
+        //If we overflowed the root, we make a new root
+        if (treeRoot == node) {
+            TFNode newRoot = new TFNode(); 
+            newRoot.setChild(0, node);
+            node.setParent(newRoot);
+            treeRoot = newRoot; 
+        }
+        //find the insertion index by determining which child our node is
+        Object insertAt = WCIT(node); 
+        //The item that will be placed into a new node in order to keep
+        //the proper number of children after an overflow event 
+        Item fixItem = node.getItem(3); 
+        //Points to the node that will become the left child of our fix node 
+        TFNode newLeft = node.getChild(3); 
+        //points to the node that will become the right child of our fix node 
+        TFNode newRight = node.getChild(4); 
+        //Item that will be pushed to the parent node
+        Item overflowItem = node.getItem(2);
+        //Creat the new node by adding all the elements gained above 
+        TFNode fixNode = new TFNode(); 
+        fixNode.insertItem(0, fixItem);
+        fixNode.setChild(0, newLeft);
+        fixNode.setChild(1, newRight);
+        //Attach the children of the fix node to the fix node 
+        newLeft.setParent(fixNode);
+        newRight.setParent(fixNode);
+        //Remove the last two children of the overflowed node; these children
+        //now belong to the fix node 
+        node.setChild(3, null);
+        node.setChild(4, null);
+        //Insertion point for the fix node in the parent 
+        int childInsert = (int) insertAt+1; 
+        TFNode parent = node.getParent(); 
+        //Move the overflow item up into the parent at the proper location
+        parent.insertItem((Integer) insertAt, overflowItem);
+        //Attach the fix node to the parent node at the proper index
+        parent.setChild(childInsert, fixNode);
+        //Set a parent pointer for the fix node to the parent
+        fixNode.setParent(parent);
+        //Remove the overflow item and the fix item; these are contained
+        //in the parent and the fix node
+        node.deleteItem(3); 
+        node.deleteItem(2); 
+ 
+        int pItems = parent.getNumItems();  
+        //Check if we overflowed the parent
+        if (parent.getNumItems() == parent.getMaxItems()+1) {
+                fixOverflow(parent); 
+            }
+    }
+    
+    /**
+     * Creates sentinel TFNode
+     * @return TFNode with sentinel value
+     */
+    private TFNode addSentinel(TFNode parent) {
+        TFNode sentinel = new TFNode();
+        //Our sentinels all have a key of -1 to distinguish them from
+        //all other key values 
+        Item newItem = new Item(-1, null); 
+        sentinel.addItem(0, newItem);
+        sentinel.setParent(parent);
+        
+        return sentinel; 
+    }
+    /**
+     * Finds the index in the parent that corresponds to this node 
+     * @param node
+     * @return the index in the parent that corresponds to this node
+     */
+    private int WCIT(TFNode node) {
+        int i;
+        //Grab a pointer to the parent 
+        TFNode parent = node.getParent(); 
+        int pItems = parent.getNumItems(); 
+            for (i = 0; i <= pItems; i++) {
+                //Find which child index our node is and return it
+                if (node == parent.getChild(i)) {
+                    return i; 
+                }
+            }
+        //Default case returns i 
+        return i; 
+    }
+    /**
+     * Finds the first item in the current node that is greater than or
+     * equal to the key given
+     * @param key is the value desired to be inserted
+     * @param node is the current node in the tree
+     * @return an int which is the position of the first element greater 
+     *         than or equal to key 
+     */
+    private int FFGTE(Integer key, TFNode node){
+        int i; 
+        for (i = 0; i < node.getNumItems(); i++){
+            //Find the first value in the node that is greater than or
+            //equal to the key we pass and return it 
+            if(treeComp.isLessThanOrEqualTo(key, node.getItem(i).key())){
+                return i;
+            }
+        }
+        //Default case returns i 
+        return i;
+    }
+    
+    /**
+     * Searches the 2-4 tree to find the proper insertion point 
+     * @param key is the value desired to be inserted
+     * @param root is the root of the current tree
+     * @return a TFNode of where the new key will be inserted 
+     */
+    private TFNode search(Object key, TFNode root) { 
+        //Grab a pointer to the root so that we can search from there 
+        TFNode currentNode = root;
+        boolean isFound = false;
+        int itr;
+        //So we have an infinite loop here. This might not be the best idea, 
+        //but it ensures that we search our tree until we find the indicated
+        //key or until we hit a sentinel
+        while (!isFound){
+            int numItems = currentNode.getNumItems();
+            //Control loop to iterate through each value in the proper node 
+            //once we find the proper node 
+            for (itr = 0; itr < numItems; itr++){
+                //Get the key value of each item in the node 
+                Object thisKey = currentNode.getItem(itr).key();
+                //If the key we're searching for is less than the key value
+                //of the current item in the node, then we enter this control
+                //loop in order to move down the left side of the tree
+                if(treeComp.isLessThanOrEqualTo(key, thisKey)){
+                    //Check if the child of the current node is a sentinel.
+                    //If it is, we have foud the correct node
+                    if(checkSentinel(itr, currentNode)){
+                        return currentNode;
+                    }
+                    //We also check to see if the key value in this node is 
+                    //equal to our key. If so, we return the node 
+                    if (treeComp.isEqual(key, thisKey)) {
+                        return currentNode; 
+                    }
+                    
+                    //Move down the left side of the tree
+                    else {
+                        currentNode = currentNode.getChild(itr);
+                        break; 
+                    }
+                }
+                //Otherwise, this means that the key value we're searching for 
+                //is greater than the key value of the current node. We can't 
+                //automatically begin searching down the right child, so we move 
+                //to the next item in the current node until we reach the last
+                //item in that node. Then we search down the right side 
+                else if (itr == numItems-1) { 
+                    //Check if the child node is a sentinel; retrn the current 
+                    //node if true 
+                    if(checkSentinel(itr+1, currentNode)){
+                        return currentNode;
+                    } 
+                    //We also check if the key value is equal to the key value
+                    //of the current item. If so we return the current node 
+                    if (treeComp.isEqual(key, thisKey)) {
+                        return currentNode; 
+                    }
+                    //If neither one of these conditions are met, we can safely
+                    //advance to the right child
+                    else {
+                        currentNode = currentNode.getChild(itr+1);
+                        break; 
+                    }
+                }
+            }
+        }
+        return currentNode;
+    }
+    
+    /**
+     * Checks to see if the node is a sentinel
+     * @param index index checking for sentinel
+     * @param node current node 
+     * @return true if the checked child is a sentinel
+     */
+    private boolean checkSentinel(int index, TFNode node) {
+        TFNode check = node.getChild(index);
+        Object checkKey = check.getItem(0).key();
+        return (treeComp.isEqual(checkKey, -1));
+    }
+
+    /**
+     * Searches dictionary to determine if key is present, then
+     * removes and returns corresponding object
+     * @param key of data to be removed
+     * @return object corresponding to key
+     * @exception ElementNotFoundException if the key is not in dictionary
+     */
+    @Override
+    public Object removeElement(Object key) throws ElementNotFoundException {
+       //Search for the key within the tree
+        Object foundKey = findElement(key); 
+        //If the key is not present in the tree, we throw an exception 
+        if (foundKey == null) {
+            throw new ElementNotFoundException("Element not found"); 
+        }
+        //Find the node we want to remove from by calling search 
+        TFNode foundNode = search(key, treeRoot); 
+        //Root case
+        if (foundNode == treeRoot && checkSentinel(0, foundNode)) {
+            if(treeRoot.getNumItems() == 1){
+                treeRoot = null; 
+                return foundNode.getItem(0).key(); 
+            } 
+        }
+        //Index of the remove location 
+        int index = FFGTE((int) key, foundNode);
+        //Item we want to remove 
+        Item foundItem = foundNode.getItem(index);
+        //If we're at an internal node (child not a sentinel), 
+        //replace the item with the inorder successor
+        if (!checkSentinel(index+1, foundNode)) {
+            inOrderSucceed(index, foundNode);
+        }
+        //If we're at a leaf, simply remove the element
+        //and check for underflow
+        else {
+            foundNode.removeItem(index);
+            if(foundNode.getNumItems() == 0 && foundNode != treeRoot){
+                fixUnderFlow(index, foundNode);
+            }
+        }  
+        return foundItem.key();
+    }
+    
+    /**
+     * Finds the node which holds the in order successor 
+     * @param index the index from which to start the search 
+     * @param foundNode is the current node 
+     * @return the in order node 
+     */
+    private TFNode inOrderNode(int index, TFNode foundNode) {
+        TFNode inOrderNode = foundNode.getChild(index+1); 
+        //While we are not at a sentinel, move left down the tree until we 
+        //hit one 
+        while (!checkSentinel(0, inOrderNode)) {
+            inOrderNode = inOrderNode.getChild(0);                       
+        }
+        return inOrderNode;  
+    }
+    
+    /**
+     * This handles a remove in the middle of the tree by replacing it 
+     * with the in order successor 
+     * @param index the index from where we start our search 
+     * @param foundNode is the current node 
+     */
+    private void inOrderSucceed(int index, TFNode foundNode) {
+        //Find the in order node 
+        TFNode inOrderNode = inOrderNode(index, foundNode);  
+        //Get the first item of the in order node 
+        Item inOrderSuccessor = inOrderNode.getItem(0);
+        //Replace the item we want to remove with the inorder succesor
+        foundNode.replaceItem(index, inOrderSuccessor);
+        //This is the index of the in order successor within the in order node
+        int inOrderIndex = FFGTE((int)inOrderSuccessor.key(), inOrderNode);
+        //Remove the in order successor form the in order node 
+        inOrderNode.removeItem(inOrderIndex);
+        //Check for underflow in the in order node 
+        if(inOrderNode.getNumItems() == 0){
+            fixUnderFlow(inOrderIndex, inOrderNode);
+        }
+    }
+    
+    /**
+     * Fixes an underflowed node 
+     * @param index is the index of the item that will cause underflow
+     * @param foundNode is the underflowed node  
+     */
+    private void fixUnderFlow(int index, TFNode foundNode){ 
+        TFNode leftSib = new TFNode();
+        TFNode rightSib = new TFNode();
+        TFNode parent = foundNode.getParent();
+        //Index of which child we underflowed
+        int UFIndex = WCIT(foundNode);
+        //If this index is not 0, then we are guarunteed to have a left sibling
+        if(UFIndex != 0){
+           leftSib = parent.getChild(UFIndex - 1);
+        }
+        //Otherwise, as long as we are not the furthest right child we are 
+        //guarunteed to have a right sibling 
+        else if (UFIndex != parent.getNumItems() + 1){
+            rightSib = parent.getChild(UFIndex + 1);
+        }
+        //If we have a left sibling and that sibling has more than one item, 
+        //we perform a left transfer
+        if (leftSib.getNumItems() > 1) {
+            leftTransfer(leftSib, parent, foundNode);
+            return;
+        }
+        //Otherwise if we have a right sibling that has more than one item, 
+        //we perform a right transfer 
+        else if (rightSib.getNumItems() > 1) {
+            rightTransfer(rightSib, parent, foundNode);
+            return;
+        }
+        //Otherwise if our left sibling has only one item, we perform
+        //a left fusion 
+        else if (leftSib.getNumItems() == 1) {
+            leftFusion(leftSib, parent, foundNode);
+            return;
+        }
+        //Finally, if all else fails, we will perform a right fusion
+        else if (rightSib.getNumItems() == 1) {
+            rightFusion(rightSib, parent, foundNode);
+            return;
+        }       
+    }  
+    
+    /**
+     * Fixes the underflow case if a node has a left sibling with more than one
+     * item in it.
+     * @param leftSib is current's left sibling
+     * @param parent is the parent of both other nodes
+     * @param current is the current node
+     */
+    private void leftTransfer(TFNode leftSib, TFNode parent, TFNode current){
+        //Index of the item we want to trasnfer in order to fix the underflowed
+        //node 
+        int leftIndex = leftSib.getNumItems()-1;
+        //We get the item at the left index; this is the item we will move 
+        //up into the parent 
+        Item upItem = leftSib.getItem(leftIndex);
+        //This is the index of our underflowed node 
+        int parentIndex = WCIT(current);
+        //This is the item we want to move down into the underflowed node 
+        Item downItem = parent.getItem(parentIndex-1);
+        //This will become the right child of the current node once we move 
+        //everythig around 
+        TFNode newRightChild = current.getChild(0);
+        //Insert the parent item into the underflowed node 
+        current.insertItem(0, downItem);
+        //This will become the left child of the current node once we move
+        //everything around 
+        TFNode newLeftChild = leftSib.getChild(leftIndex+1);
+        //We push up the extra item in the left sibling into the parent in the 
+        //same location that we moved the parent item down to the underflowed node
+        parent.replaceItem(parentIndex-1, upItem);
+        //Grabbing a pointer to the child that will be overriden with removeItem
+        TFNode saveChild = new TFNode(); 
+        if (WCIT(newLeftChild) != 0) {
+            saveChild = leftSib.getChild(leftIndex); 
+        }
+        //Remove the item we just moved into the parent 
+        leftSib.removeItem(leftIndex);
+        //Hook up the lost children (due to removing the leftSib item) 
+        //to the current node 
+        current.setChild(0, newLeftChild);
+        newLeftChild.setParent(current);
+        current.setChild(1, newRightChild);
+        newRightChild.setParent(current);
+        leftSib.setChild(leftIndex, saveChild);
+        saveChild.setParent(leftSib);
+    }
+    
+    /**
+     * Fixes the underflow case if a node has a right sibling with more than one
+     * item in it.
+     * @param rightSib is current's right sibling
+     * @param parent is the parent of both other nodes
+     * @param current is the current node
+     */
+    private void rightTransfer(TFNode rightSib, TFNode parent, TFNode current){
+        //Right transfer does the same process as left transfer 
+        int rightIndex = 0;
+        //Item we want to move into the parent 
+        Item upItem = rightSib.getItem(rightIndex);
+        //Location for transfers
+        int parentIndex = WCIT(current);
+        //Item we want to move down into the underflowed node 
+        Item downItem = parent.getItem(parentIndex);
+        //Insert the proper element into the underflowed node 
+        current.insertItem(0, downItem);
+        //Replace the proper parent item with right sibs upItem 
+        parent.replaceItem(parentIndex, upItem);
+        //Grab a pointer to the child that we'll lose once we remove the 
+        //item from right sib 
+        TFNode fixChild = rightSib.getChild(rightIndex); 
+        //Hook up this child to the fixed node
+        current.setChild(1, fixChild);
+        fixChild.setParent(current);
+        //Remove right sibs Item 
+        rightSib.removeItem(rightIndex);
+    }
+    
+    /**
+     * Fixes the underflow case if a node has a left sibling with only one
+     * item in it.
+     * @param leftSib is current's left sibling
+     * @param parent is the parent of both other nodes
+     * @param current is the current node
+     */
+    private void leftFusion(TFNode leftSib, TFNode parent, TFNode current){
+        //New node that we'll use to fix this type of underflow
+        TFNode fixNode = new TFNode(); 
+        //Index of the left sibling 
+        int index = WCIT(leftSib);
+        //Add the single element in the left sibling to the new node 
+        fixNode.addItem(0, leftSib.getItem(0));
+        //Set child and parent pointers in the fix node. We hook up both of 
+        //left sibs children to the fix node (since left sib will only ever
+        //have two children in this case), and add parent pointers for the 
+        //children to point to the fix node. We also move the correct parent 
+        //item into the fix node 
+        fixNode.setChild(0, leftSib.getChild(0));
+        leftSib.getChild(0).setParent(fixNode);
+        fixNode.setChild(1, leftSib.getChild(1));
+        leftSib.getChild(1).setParent(fixNode);
+        fixNode.insertItem(1, parent.getItem(index));
+        fixNode.setChild(2, current.getChild(0));
+        current.getChild(0).setParent(fixNode);
+        //We remove the parent item that we moved down into the fix node 
+        parent.removeItem(index);
+        //Attach our new node to the parent 
+        parent.setChild(index, fixNode);
+        fixNode.setParent(parent);
+        //Check if we underflowed the parent node 
+        if (parent.getNumItems() == 0) {
+            //Check if we're at the root 
+            if (parent == treeRoot) {
+                treeRoot = fixNode; 
+                fixNode.setParent(null);
+                return; 
+            }
+            fixUnderFlow(index+1, parent);
+        }
+    }
+    
+    /**
+     * Fixes the underflow case if a node has a right sibling with only one
+     * item in it.
+     * @param rightSib is current's right sibling
+     * @param parent is the parent of both other nodes
+     * @param current is the current node
+     */
+    private void rightFusion(TFNode rightSib, TFNode parent, TFNode current){
+        //Fix node. Same as left fusion 
+        TFNode fixNode = new TFNode();
+        //Index of the underflowed node 
+        int index = WCIT(current);
+        //Populate the fix node with the proper values and children and add 
+        //appropriate parent pointers 
+        fixNode.addItem(0, parent.getItem(index));
+        fixNode.setChild(0, current.getChild(0));
+        current.getChild(0).setParent(fixNode);
+        fixNode.setChild(1, rightSib.getChild(0)); 
+        rightSib.getChild(0).setParent(fixNode);
+        fixNode.insertItem(1, rightSib.getItem(0));
+        fixNode.setChild(2, rightSib.getChild(1));
+        rightSib.getChild(1).setParent(fixNode);
+        //Remove the item from the parent that we moved down into the fix node 
+        parent.removeItem(index); 
+        parent.setChild(index, fixNode);
+        fixNode.setParent(parent);
+        //Check if we underflowed the parent node 
+        if (parent.getNumItems() == 0) { 
+            //Check if we're at the root 
+            if (parent == treeRoot) {
+                treeRoot = fixNode; 
+                fixNode.setParent(null);
+                return; 
+            }
+            fixUnderFlow(index, parent);
+        }
+    }
+    
+    /**
+     * Main method 
+     * @param args 
+     */
+    public static void main(String[] args) {
+        Comparator myComp = new IntegerComparator();
+        TwoFourTree myTree = new TwoFourTree(myComp);
+
+        Integer myInt1 = new Integer(47);
+        myTree.insertElement(myInt1, myInt1);
+        
+        Integer myInt2 = new Integer(83);
+        myTree.insertElement(myInt2, myInt2);
+        
+        Integer myInt3 = new Integer(22);
+        myTree.insertElement(myInt3, myInt3);
+
+        Integer myInt4 = new Integer(16);
+        myTree.insertElement(myInt4, myInt4);
+
+        Integer myInt5 = new Integer(49);
+        myTree.insertElement(myInt5, myInt5);
+
+        Integer myInt6 = new Integer(100);
+        myTree.insertElement(myInt6, myInt6);
+
+        Integer myInt7 = new Integer(38);
+        myTree.insertElement(myInt7, myInt7);
+
+        Integer myInt8 = new Integer(3);
+        myTree.insertElement(myInt8, myInt8);
+
+        Integer myInt9 = new Integer(53);
+        myTree.insertElement(myInt9, myInt9);
+
+        Integer myInt10 = new Integer(66);
+        myTree.insertElement(myInt10, myInt10);
+
+        Integer myInt11 = new Integer(19);
+        myTree.insertElement(myInt11, myInt11);
+
+        Integer myInt12 = new Integer(23);
+        myTree.insertElement(myInt12, myInt12);
+
+        Integer myInt13 = new Integer(24);
+        myTree.insertElement(myInt13, myInt13);
+
+        Integer myInt14 = new Integer(88);
+        myTree.insertElement(myInt14, myInt14);
+
+        Integer myInt15 = new Integer(1);
+        myTree.insertElement(myInt15, myInt15);
+
+        Integer myInt16 = new Integer(97);
+        myTree.insertElement(myInt16, myInt16);
+
+        Integer myInt17 = new Integer(94);
+        myTree.insertElement(myInt17, myInt17);
+
+        Integer myInt18 = new Integer(35);
+        myTree.insertElement(myInt18, myInt18);
+
+        Integer myInt19 = new Integer(51);
+        myTree.insertElement(myInt19, myInt19);
+
+        myTree = new TwoFourTree(myComp);
+        final int TEST_SIZE = 10000;     
+ 
+        System.out.println("done");
+        Random rand = new Random();
+        int []nums = new int[TEST_SIZE];
+        
+        myTree = new TwoFourTree(myComp); 
+        System.out.println("Inserting...");
+        for (int i = 0; i < TEST_SIZE; i++) {
+            nums[i] = rand.nextInt(TEST_SIZE/5);
+            myTree.insertElement(new Integer(nums[i]), new Integer(nums[i]));
+        }
+        
+         myTree.printAllElements();
+         
+        System.out.println("Removing...");
+        for (int i = 0; i < TEST_SIZE; i++) {
+            if (i > TEST_SIZE - 35) {
+                System.out.println("removing " + nums[i]);
+            }
+            int out = (int) myTree.removeElement(new Integer(nums[i])); 
+            if (out != nums[i]) {
+                throw new ElementNotFoundException("Wrong element removed");
+            }
+            if (i > TEST_SIZE - 25) {
+                myTree.printAllElements();
+            }
+        }
+    }
+    
+    /**
+     * Prints all the elements in the tree by calling printTree
+     */
+    public void printAllElements() {
+        int indent = 0;
+        if (root() == null) {
+            System.out.println("The tree is empty");
+        }
+        else {
+            printTree(root(), indent);
+        }
+    }
+
+    /**
+     * Prints all the elements in the tree 
+     * @param start location to start printing from 
+     * @param indent formatting for the print 
+     */
+    public void printTree(TFNode start, int indent) {
+        if (start == null) {
+            return;
+        }
+        for (int i = 0; i < indent; i++) {
+            System.out.print(" ");
+        }
+        printTFNode(start);
+        indent += 4;
+        int numChildren = start.getNumItems() + 1;
+        for (int i = 0; i < numChildren; i++) {
+            printTree(start.getChild(i), indent);
+        }
+    }
+
+    /**
+     * Prints the elements in a TFNode
+     * @param node the node we're printing 
+     */
+    public void printTFNode(TFNode node) {
+        int numItems = node.getNumItems();
+        for (int i = 0; i < numItems; i++) {
+            System.out.print(node.getItem(i).element() + " ");
+        }
+        System.out.println();
+    }
+
+    /**
+     * Checks to see if the tree is properly hooked up by 
+     * calling checkTreeFromNode
+     */
+    public void checkTree() {
+        checkTreeFromNode(treeRoot);
+    }
+
+    /**
+     * Checks to see if the tree is properly hooked up 
+     * @param start 
+     */
+    private void checkTreeFromNode(TFNode start) {
+        if (start == null) {
+            return;
+        }
+
+        if (start.getParent() != null) {
+            TFNode parent = start.getParent();
+            int childIndex = 0;
+            for (childIndex = 0; childIndex <= parent.getNumItems(); childIndex++) {
+                if (parent.getChild(childIndex) == start) {
+                    break;
+                }
+            }
+            // if child wasn't found, print problem
+            if (childIndex > parent.getNumItems()) {
+                System.out.println("Child to parent confusion");
+                printTFNode(start);
+            }
+        }
+
+        if (start.getChild(0) != null) {
+            for (int childIndex = 0; childIndex <= start.getNumItems(); childIndex++) {
+                if (start.getChild(childIndex) == null) {
+                    System.out.println("Mixed null and non-null children");
+                    printTFNode(start);
+                }
+                else {
+                    if (start.getChild(childIndex).getParent() != start) {
+                        System.out.println("Parent to child confusion");
+                        printTFNode(start);
+                    }
+                    for (int i = childIndex - 1; i >= 0; i--) {
+                        if (start.getChild(i) == start.getChild(childIndex)) {
+                            System.out.println("Duplicate children of node");
+                            printTFNode(start);
+                        }
+                    }
+                }
+
+            }
+        }
+
+        int numChildren = start.getNumItems() + 1;
+        for (int childIndex = 0; childIndex < numChildren; childIndex++) {
+            checkTreeFromNode(start.getChild(childIndex));
+        }
+
+    }
+}
