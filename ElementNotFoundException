@@ -4,7 +4,6 @@ package termproject;
 * Title:        Term Project 2-4 Trees
 * Description:  Exception if the element is not found in the tree
 * Copyright:    Copyright (c) 2001
-* Company:
 * @author Dave Gallagher 
 * @version 1.0
 */
